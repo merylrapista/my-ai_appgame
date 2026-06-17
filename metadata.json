@@ -1,0 +1,6 @@
+{
+  "name": "8-Bit Gesture Platformer",
+  "description": "An 8-bit retro platformer game with real-time gesture-based controls powered by Teachable Machine and TensorFlow.js.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
