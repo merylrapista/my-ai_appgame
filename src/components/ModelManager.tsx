@@ -11,7 +11,37 @@ interface ModelManagerProps {
   onModelLoadedStatusChange: (loaded: boolean) => void;
 }
 
-const DEFAULT_MODEL_URL = 'https://teachablemachine.withgoogle.com/models/v9bZLQV_P/'; // Can be a template or default URL
+// Local model extracted from tm-my-image-model.zip → public/model/
+// Classes: Happy → jump | Sad, Angry, Disappointed → duck
+const DEFAULT_MODEL_URL = '/model/';
+
+// Emotion-to-action keyword map: class names from Teachable Machine → GameAction
+// Model classes: Happy, Sad, Angry, Disappointed
+const EMOTION_ACTION_MAP: Record<string, import('../types').GameAction> = {
+  // Jump triggers
+  happy:        'jump',
+  smile:        'jump',
+  smiling:      'jump',
+  excited:      'jump',
+  up:           'jump',
+  jump:         'jump',
+  hand:         'jump',
+  raise:        'jump',
+  // Duck triggers
+  sad:          'duck',
+  frown:        'duck',
+  angry:        'duck',
+  disappointed: 'duck',
+  upset:        'duck',
+  crouch:       'duck',
+  duck:         'duck',
+  down:         'duck',
+  // Directional (unused in emotion model but kept for generic models)
+  left:         'left',
+  back:         'left',
+  right:        'right',
+  run:          'right',
+};
 
 export default function ModelManager({
   onActionTriggered,
@@ -35,9 +65,9 @@ export default function ModelManager({
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Initialize keyboard fallback listening for training classes mapper info
+
+  // Notify parent when model load state changes
   useEffect(() => {
-    // Notify loaded status
     onModelLoadedStatusChange(!!model);
   }, [model, onModelLoadedStatusChange]);
 
@@ -45,21 +75,27 @@ export default function ModelManager({
     onWebcamStatusChange(webcamEnabled);
   }, [webcamEnabled, onWebcamStatusChange]);
 
-  // Handle setting up default mappings when model classes are loaded/changed
+  // Handle setting up default mappings when model classes are loaded/changed.
+  // Supports emotion-based class names: happy → jump, sad → duck, neutral → idle
   useEffect(() => {
     if (classes.length > 0) {
       const initialMappings = classes.map((cls) => {
-        const clsLower = cls.toLowerCase();
+        const clsLower = cls.toLowerCase().trim();
         let action: GameAction = 'idle';
-        if (clsLower.includes('jump') || clsLower.includes('up') || clsLower.includes('hand')) {
-          action = 'jump';
-        } else if (clsLower.includes('duck') || clsLower.includes('down') || clsLower.includes('crouch')) {
-          action = 'duck';
-        } else if (clsLower.includes('left') || clsLower.includes('back')) {
-          action = 'left';
-        } else if (clsLower.includes('right') || clsLower.includes('run')) {
-          action = 'right';
+
+        // First: check exact match in emotion/action keyword map
+        if (EMOTION_ACTION_MAP[clsLower]) {
+          action = EMOTION_ACTION_MAP[clsLower];
+        } else {
+          // Fallback: substring matching for partial words
+          for (const [keyword, mappedAction] of Object.entries(EMOTION_ACTION_MAP)) {
+            if (clsLower.includes(keyword)) {
+              action = mappedAction;
+              break;
+            }
+          }
         }
+
         return {
           className: cls,
           action,
@@ -131,13 +167,12 @@ export default function ModelManager({
   const loadTeachableMachineModel = async (customUrl?: string) => {
     const urlToLoad = customUrl || modelUrl;
     if (!urlToLoad) {
-      setErrorMsg("Model URL cannot be empty");
+      setErrorMsg('Model URL cannot be empty');
       return;
     }
 
     setIsLoading(true);
     setErrorMsg(null);
-    audioSynth.playBeep();
 
     // Standardize URL to have a trailing slash
     let finalizedUrl = urlToLoad.trim();
@@ -148,7 +183,7 @@ export default function ModelManager({
     try {
       // Initialize tfjs backends before loading TM image models
       await tf.ready();
-      
+
       const modelJsonURL = finalizedUrl + 'model.json';
       const metadataJsonURL = finalizedUrl + 'metadata.json';
 
@@ -159,14 +194,18 @@ export default function ModelManager({
       setClasses(labels);
       setIsLoading(false);
       audioSynth.playScoreMilestone();
-    } catch (err: any) {
-      console.error("Model load failed", err);
+    } catch (err: unknown) {
+      console.error('Model load failed', err);
       setErrorMsg(
-        "Could not load TM Model. Check that the URL is a valid public Teachable Machine Link (e.g. https://teachablemachine.withgoogle.com/models/xxxx/) and allows CORS access."
+        'Could not load TM Model. Check that the URL is a valid public Teachable Machine link (e.g. https://teachablemachine.withgoogle.com/models/xxxx/) and allows CORS access.'
       );
       setIsLoading(false);
     }
   };
+
+  // Auto-load the local emotion model on first mount (declared after loadTeachableMachineModel)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadTeachableMachineModel(DEFAULT_MODEL_URL); }, []);
 
   // Main recognition loop
   useEffect(() => {
@@ -324,6 +363,17 @@ export default function ModelManager({
           {/* SAMPLES LOADER HELP SHORTCUTS */}
           <div className="flex flex-wrap gap-1.5 pt-1">
             <span className="text-[9px] text-slate-500 self-center">Presets:</span>
+            {/* 😊 Local emotion model: Happy→jump, Sad/Angry/Disappointed→duck */}
+            <button
+              id="model-preset-emotion-btn"
+              onClick={() => {
+                setModelUrl('/model/');
+                loadTeachableMachineModel('/model/');
+              }}
+              className="bg-amber-950/40 hover:bg-amber-900/50 border border-amber-700/50 text-[10px] px-2.5 py-1 rounded text-amber-300 hover:text-amber-200 transition cursor-pointer font-bold tracking-wide"
+            >
+              😊 Emotion Model (Local)
+            </button>
             <button
               id="model-preset-1-btn"
               onClick={() => {
@@ -412,8 +462,15 @@ export default function ModelManager({
               {/* ACTIVE GESTURE OVERLAY HUD */}
               <div className="z-10 bg-black/60 px-4 py-1.5 rounded-lg border border-emerald-500/30 backdrop-blur-sm self-center text-center">
                 <div className="text-[9px] font-mono text-emerald-500/70 tracking-wider uppercase font-bold">RECOGNIZED</div>
-                <div className="text-lg font-mono text-emerald-400 font-bold tracking-widest uppercase animate-pulse">
-                  {activeGesture === 'idle' ? '— STANDING —' : activeGesture}
+                <div className={`text-lg font-mono font-bold tracking-widest uppercase animate-pulse ${
+                  activeGesture === 'jump' ? 'text-yellow-400' :
+                  activeGesture === 'duck' ? 'text-blue-400' :
+                  'text-emerald-400'
+                }`}>
+                  {activeGesture === 'idle' ? '— NEUTRAL —' :
+                   activeGesture === 'jump' ? '😊 HAPPY → JUMP' :
+                   activeGesture === 'duck' ? '😢 SAD → DUCK' :
+                   activeGesture.toUpperCase()}
                 </div>
               </div>
 
@@ -597,15 +654,25 @@ export default function ModelManager({
         {/* HOW TO RUN INSTRUCTIONS IN DRAWER */}
         {showHelp && (
           <div id="gesture-guide-drawer" className="bg-black/40 p-4 border border-slate-800 rounded-lg font-mono text-slate-400 text-[11.5px] leading-relaxed space-y-2">
-            <div className="flex items-center space-x-1.5 text-slate-300 font-bold uppercase pb-1 border-b border-slate-850">
-              <Check className="w-3.5 h-3.5 text-emerald-450" />
+            <div className="flex items-center space-x-1.5 text-slate-300 font-bold uppercase pb-1 border-b border-slate-800">
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
               <span>TEACHABLE MACHINE GUIDE</span>
             </div>
-            <ol className="list-decimal pl-4.5 space-y-1 text-slate-400">
-              <li>Open Google's <a href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">Teachable Machine</a>.</li>
-              <li>Launch <strong>Image Project</strong> & train custom gestures.</li>
-              <li>Under "Export Model", click <strong>Upload (shareable link)</strong> and copy the URL.</li>
-              <li>Paste the URL above, and click <strong>LOAD</strong>!</li>
+            {/* Emotion control legend */}
+            <div className="bg-[#0a0a0c] border border-slate-800 rounded p-2.5 space-y-1">
+              <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Your Model Classes → Actions</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                <span className="text-yellow-400 font-bold">😊 Happy → JUMP</span>
+                <span className="text-blue-400 font-bold">😢 Sad → DUCK</span>
+                <span className="text-blue-400 font-bold">😠 Angry → DUCK</span>
+                <span className="text-blue-400 font-bold">😞 Disappointed → DUCK</span>
+              </div>
+            </div>
+            <ol className="list-decimal pl-4 space-y-1 text-slate-400">
+              <li>Model is <strong className="text-emerald-400">loaded locally</strong> from <code className="text-amber-400">/public/model/</code>.</li>
+              <li>Click <strong>😊 Emotion Model (Local)</strong> preset to reload if needed.</li>
+              <li>Enable your webcam and start playing — smile to jump, frown to duck!</li>
+              <li>Use the threshold sliders below to tune sensitivity per class.</li>
             </ol>
           </div>
         )}

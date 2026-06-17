@@ -109,7 +109,7 @@ export default function App() {
                 Real-Time Neural Vision Controller Active
               </p>
               <p className="leading-relaxed text-slate-400">
-                Control the hero dinosaur using gesture recognition with your webcam, or instantly fallback to keyboard keys during training. No third-party assets are requested—all sound synthesis is procedurally generated.
+                Control the hero dinosaur using <strong className="text-yellow-400">😊 Happy face</strong> to <strong className="text-white">JUMP</strong> and <strong className="text-blue-400">😢 Sad/Angry face</strong> to <strong className="text-white">DUCK</strong> — powered by your Teachable Machine emotion model. Keyboard fallback always active during testing.
               </p>
             </div>
           </div>
@@ -166,14 +166,14 @@ export default function App() {
 
             {/* MANUAL BOX 2 */}
             <div className="space-y-2 bg-[#0a0a0c] p-4 border border-slate-800/80 rounded-lg">
-              <div className="text-white font-medium text-xs uppercase border-b border-slate-850 pb-1.5 flex justify-between items-center">
-                <span>🤖 Gesture Recognition</span>
+              <div className="text-white font-medium text-xs uppercase border-b border-slate-800 pb-1.5 flex justify-between items-center">
+                <span>🤖 Emotion Controls</span>
                 <span className="text-[9px] text-cyan-400 animate-pulse">NEURAL</span>
               </div>
               <ul className="space-y-1 text-slate-400 leading-normal">
-                <li><strong className="text-slate-200">Standing (Neutral):</strong> Neutral posture maintains run forward at base speed.</li>
-                <li><strong className="text-slate-200">Jumping Hands:</strong> Raise your hand, or custom pose, to leap over spikes easily.</li>
-                <li><strong className="text-slate-200">Ducking Down:</strong> Lean or head-tilt down to squeeze beneath high flying birds.</li>
+                <li><strong className="text-yellow-400">😊 Happy:</strong> Show a happy / smiling face to make the hero <strong className="text-slate-200">JUMP</strong> over spikes and mushrooms!</li>
+                <li><strong className="text-blue-400">😢 Sad:</strong> Show a sad / frown face to make the hero <strong className="text-slate-200">DUCK</strong> under flying drone birds.</li>
+                <li><strong className="text-slate-300">😐 Neutral:</strong> Relax your expression to maintain the forward run at base speed.</li>
               </ul>
             </div>
 
